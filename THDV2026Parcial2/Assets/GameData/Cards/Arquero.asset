@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Arquero
   m_EditorClassIdentifier: Assembly-CSharp::CardDataSO
   cardName: Arquero
-  artwork: {fileID: 0}
+  artwork: {fileID: 21300000, guid: a339147d3a2fe254b8548d4658f497da, type: 3}
   rarity: 1
   energyCost: 3
   basePower: 5

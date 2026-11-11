@@ -11,6 +11,7 @@ public class BarUIManager : MonoBehaviour
     [Header("Paneles")]
     [SerializeField] private GameObject cardGamePanel;
     [SerializeField] private GameObject shopPanel;
+    [SerializeField] private GameObject deckPanel;
     [SerializeField] private GameObject pausePanel;
     [SerializeField] private GameObject mainMenuPanel;
 
@@ -27,10 +28,20 @@ public class BarUIManager : MonoBehaviour
 
     private void Start()
     {
-        if (cardGamePanel != null) cardGamePanel.SetActive(false);
-        if (shopPanel != null) shopPanel.SetActive(false);
-        if (pausePanel != null) pausePanel.SetActive(false);
-        if (mainMenuPanel != null) mainMenuPanel.SetActive(false);
+        if (cardGamePanel != null)
+            cardGamePanel.SetActive(false);
+
+        if (shopPanel != null)
+            shopPanel.SetActive(false);
+
+        if (deckPanel != null)
+            deckPanel.SetActive(false);
+
+        if (pausePanel != null)
+            pausePanel.SetActive(false);
+
+        if (mainMenuPanel != null)
+            mainMenuPanel.SetActive(false);
 
         if (interactionText != null)
             interactionText.gameObject.SetActive(false);
@@ -44,6 +55,8 @@ public class BarUIManager : MonoBehaviour
         if (Keyboard.current.escapeKey.wasPressedThisFrame)
         {
             if (currentPanel == pausePanel)
+                ClosePanel();
+            else if (currentPanel == deckPanel)
                 ClosePanel();
             else if (currentPanel == null)
                 OpenPanel(pausePanel);
@@ -71,6 +84,9 @@ public class BarUIManager : MonoBehaviour
 
     public void OpenCardGame()
     {
+        if (IsBusy)
+            return;
+
         OpenPanel(cardGamePanel);
 
         if (cardGameManager != null)
@@ -82,6 +98,34 @@ public class BarUIManager : MonoBehaviour
         OpenPanel(shopPanel);
     }
 
+    public void OpenDeckEditor()
+    {
+        if (deckPanel == null)
+        {
+            Debug.LogWarning("Falta asignar DeckPanel.");
+            return;
+        }
+
+        // Permite abrir la colección desde la tienda.
+        if (currentPanel == shopPanel)
+        {
+            shopPanel.SetActive(false);
+            currentPanel = null;
+        }
+
+        OpenPanel(deckPanel);
+    }
+
+    public void BackToShop()
+    {
+        if (currentPanel != deckPanel)
+            return;
+
+        deckPanel.SetActive(false);
+        currentPanel = null;
+
+        OpenPanel(shopPanel);
+    }
 
     public void OpenMainMenu()
     {
@@ -93,7 +137,6 @@ public class BarUIManager : MonoBehaviour
 
         OpenPanel(mainMenuPanel);
     }
-
 
     public void OpenPanel(GameObject panel)
     {

@@ -18,5 +18,5 @@ MonoBehaviour:
   artwork: {fileID: 0}
   trigger: 1
   effect: 2
-  effectValue: 1
+  effectValue: 2
   shopPrice: 3

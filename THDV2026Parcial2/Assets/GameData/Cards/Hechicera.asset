@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Hechicera
   m_EditorClassIdentifier: Assembly-CSharp::CardDataSO
   cardName: Hechicera
-  artwork: {fileID: 0}
+  artwork: {fileID: 21300000, guid: 3ddea825d9775a64997ab1d3bfce6bfb, type: 3}
   rarity: 2
   energyCost: 5
   basePower: 8

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Caballero
   m_EditorClassIdentifier: Assembly-CSharp::CardDataSO
   cardName: Caballero
-  artwork: {fileID: 0}
+  artwork: {fileID: 21300000, guid: 3ba0ad19690e1a346b762847d9f43090, type: 3}
   rarity: 1
   energyCost: 4
   basePower: 7

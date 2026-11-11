@@ -14,6 +14,7 @@ public class CardGameManager : MonoBehaviour
 
     [Header("Configuracion")]
     [SerializeField] private int startingHandSize = 4;
+    [SerializeField] private int maxHandSize = 6;
     [SerializeField] private int deckSize = 12;
     [SerializeField] private int maxCopiesPerCard = 3;
     [SerializeField] private int maxBoardCards = 12;
@@ -38,9 +39,13 @@ public class CardGameManager : MonoBehaviour
     // Coleccion permanente durante la sesion.
     private readonly List<CardInstance> ownedCards = new();
     private readonly List<RuneDataSO> ownedRunes = new();
+    private readonly List<CardInstance> selectedDeck = new();
 
     public IReadOnlyList<CardInstance> OwnedCards => ownedCards;
     public IReadOnlyList<RuneDataSO> OwnedRunes => ownedRunes;
+    public IReadOnlyList<CardInstance> SelectedDeck => selectedDeck;
+    public int MinDeckCards => 6;
+    public int MaxDeckCards => deckSize;
     public IReadOnlyList<CardDataSO> AvailableCards => availableCards;
     public IReadOnlyList<RuneDataSO> AvailableRunes => availableRunes;
 
@@ -74,12 +79,17 @@ public class CardGameManager : MonoBehaviour
     {
         coins = startingCoins;
         ownedCards.Clear();
+        selectedDeck.Clear();
         if (availableCards != null)
         {
             foreach (CardDataSO data in availableCards)
             {
                 if (data != null && CountCopies(ownedCards, data) < maxCopiesPerCard)
-                    ownedCards.Add(new CardInstance(data));
+                {
+                    CardInstance starter = new CardInstance(data);
+                    ownedCards.Add(starter);
+                    if (selectedDeck.Count < deckSize) selectedDeck.Add(starter);
+                }
             }
         }
     }
@@ -89,6 +99,12 @@ public class CardGameManager : MonoBehaviour
         if (availableCards == null || availableCards.Count == 0)
         {
             Debug.LogError("No hay cartas configuradas.");
+            return;
+        }
+
+        if (selectedDeck.Count < MinDeckCards || selectedDeck.Count > deckSize)
+        {
+            Debug.LogWarning("El mazo debe tener entre " + MinDeckCards + " y " + deckSize + " cartas.");
             return;
         }
 
@@ -102,14 +118,11 @@ public class CardGameManager : MonoBehaviour
         playerBoard.Clear();
         enemyBoard.Clear();
 
-        // Por ahora se juega con todas las cartas propias (hasta deckSize).
-        // El editor de mazos permitira elegir una seleccion mas adelante.
-        foreach (CardInstance ownedCard in ownedCards)
+        // Solo las copias seleccionadas, con sus runas equipadas.
+        foreach (CardInstance selected in selectedDeck)
         {
-            if (playerDeck.Count >= deckSize)
-                break;
-            ownedCard.ResetPower();
-            playerDeck.Add(ownedCard);
+            selected.ResetPower();
+            playerDeck.Add(selected);
         }
 
         CreateDeck(enemyDeck);
@@ -197,6 +210,44 @@ public class CardGameManager : MonoBehaviour
         return true;
     }
 
+    // Agregar o quitar una copia concreta del mazo.
+    public bool ToggleDeckCard(CardInstance card)
+    {
+        if (card == null || !ownedCards.Contains(card) || (gameStarted && !gameFinished)) return false;
+        if (selectedDeck.Contains(card))
+        {
+            if (selectedDeck.Count <= MinDeckCards) return false;
+            selectedDeck.Remove(card);
+        }
+        else
+        {
+            if (selectedDeck.Count >= deckSize) return false;
+            selectedDeck.Add(card);
+        }
+        NotifyStateChanged();
+        return true;
+    }
+
+    // Una runa desbloqueada se puede equipar en varias cartas.
+    // No se repite la misma runa en una misma carta.
+    public bool ToggleCardRune(CardInstance card, RuneDataSO rune)
+    {
+        if (card == null || rune == null || !ownedCards.Contains(card) ||
+            !ownedRunes.Contains(rune) || (gameStarted && !gameFinished)) return false;
+
+        if (card.equippedRunes.Contains(rune))
+        {
+            card.equippedRunes.Remove(rune);
+        }
+        else
+        {
+            if (card.equippedRunes.Count >= card.RuneSlots) return false;
+            card.equippedRunes.Add(rune);
+        }
+        NotifyStateChanged();
+        return true;
+    }
+
     private int CountCopies(
         List<CardInstance> deck,
         CardDataSO data)
@@ -271,9 +322,13 @@ public class CardGameManager : MonoBehaviour
     }
 
     private void DrawCard(
-        List<CardInstance> deck,
-        List<CardInstance> hand)
+    List<CardInstance> deck,
+    List<CardInstance> hand)
     {
+        // No permitir más de 6 cartas en mano.
+        if (hand.Count >= maxHandSize)
+            return;
+
         if (deck.Count == 0)
             return;
 
@@ -575,6 +630,7 @@ public class CardGameManager : MonoBehaviour
             return;
 
         gameFinished = true;
+        gameStarted = false;
 
         Debug.Log("===== FIN DE PARTIDA =====");
 
