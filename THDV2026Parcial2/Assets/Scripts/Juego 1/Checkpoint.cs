@@ -21,8 +21,12 @@ public class Checkpoint : MonoBehaviour
                 ? spawnPoint.position
                 : transform.position;
 
-            player.SetCheckpoint(position);
-            activated = true;
+            if (player.SetCheckpoint(this, position))
+            {
+                activated = true;
+
+                Debug.Log("Checkpoint alcanzado");
+            }
         }
     }
 }

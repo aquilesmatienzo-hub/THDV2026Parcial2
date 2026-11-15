@@ -7,10 +7,14 @@ public class PlayerRespawn : MonoBehaviour
     [Header("Checkpoints del nivel")]
     [SerializeField] private Checkpoint[] checkpoints;
 
+    [Header("Proteccion al reaparecer")]
+    [SerializeField] private float invulnerabilityTime = 1f;
+
     private Vector3 respawnPosition;
     private Rigidbody rb;
 
     private int currentCheckpointIndex = -1;
+    private float invulnerableUntil;
 
     private void Awake()
     {
@@ -18,43 +22,49 @@ public class PlayerRespawn : MonoBehaviour
         respawnPosition = transform.position;
     }
 
-    public void SetCheckpoint(Vector3 position)
+    public bool SetCheckpoint(
+        Checkpoint checkpoint,
+        Vector3 position)
     {
-        // Identificar el checkpoint que se activo.
         for (int i = 0; i < checkpoints.Length; i++)
         {
-            if (Vector3.Distance(
-                checkpoints[i].transform.position,
-                position
-            ) < 2f)
+            if (checkpoints[i] == checkpoint)
             {
-                // No retroceder a checkpoints anteriores.
                 if (i <= currentCheckpointIndex)
-                    return;
+                    return false;
 
                 currentCheckpointIndex = i;
                 respawnPosition = position;
 
-                Debug.Log(
-                    "Checkpoint activado: " + (i + 1)
-                );
-
-                return;
+                Debug.Log("Checkpoint activado: " + (i + 1));
+                return true;
             }
         }
 
-        // Mantener compatibilidad con el sistema anterior.
-        respawnPosition = position;
-        Debug.Log("Checkpoint activado");
+        return false;
     }
 
     public void Die()
     {
+        // Evitar perder varias vidas por una misma caida.
+        if (Time.time < invulnerableUntil)
+            return;
+
+        if (LevelManager.Instance == null)
+            return;
+
+        invulnerableUntil =
+            Time.time + invulnerabilityTime;
+
+        bool canRespawn = LevelManager.Instance.LoseLife();
+
+        if (!canRespawn)
+            return;
+
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
 
         rb.position = respawnPosition;
-
         Physics.SyncTransforms();
 
         Debug.Log("Jugador reaparecio");

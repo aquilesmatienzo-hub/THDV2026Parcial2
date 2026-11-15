@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PlatformerStats
   m_EditorClassIdentifier: Assembly-CSharp::PlatformerStatsSO
   moveSpeed: 6
-  jumpForce: 10
+  jumpForce: 8
   coyoteTime: 0.12
   jumpBufferTime: 0.15
   jumpCutMultiplier: 0.2
