@@ -6,17 +6,8 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(CapsuleCollider))]
 public class PlayerMovement2D5 : MonoBehaviour
 {
-    [Header("Movimiento")]
-    [SerializeField] private float moveSpeed = 6f;
-    [SerializeField] private float jumpForce = 10f;
-
-    [Header("Ayudas de salto")]
-    [SerializeField] private float coyoteTime = 0.12f;
-    [SerializeField] private float jumpBufferTime = 0.15f;
-
-    [Header("Salto variable")]
-    [Range(0.1f, 1f)]
-    [SerializeField] private float jumpCutMultiplier = 0.5f;
+    [Header("Estadisticas")]
+    [SerializeField] private PlatformerStatsSO playerStats;
 
     [Header("Deteccion del suelo")]
     [SerializeField] private float groundCheckDistance = 0.12f;
@@ -30,8 +21,9 @@ public class PlayerMovement2D5 : MonoBehaviour
     private float jumpBufferCounter;
 
     private bool isGrounded;
-    private bool jumpCutRequested;
-    private bool jumpStarted;
+    private bool jumpHeld;
+    private bool jumpActive;
+    private bool jumpCutApplied;
 
     private Transform currentPlatform;
     private Vector3 previousPlatformPosition;
@@ -59,16 +51,14 @@ public class PlayerMovement2D5 : MonoBehaviour
                 Keyboard.current.rightArrowKey.isPressed)
                 horizontalInput = 1f;
 
-            if (Keyboard.current.spaceKey.wasPressedThisFrame)
-            {
-                jumpBufferCounter = jumpBufferTime;
-                jumpCutRequested = false;
-            }
+            jumpHeld = Keyboard.current.spaceKey.isPressed;
 
-            if (Keyboard.current.spaceKey.wasReleasedThisFrame)
-            {
-                jumpCutRequested = true;
-            }
+            if (Keyboard.current.spaceKey.wasPressedThisFrame)
+                jumpBufferCounter = playerStats.jumpBufferTime;
+        }
+        else
+        {
+            jumpHeld = false;
         }
 
         jumpBufferCounter -= Time.deltaTime;
@@ -76,76 +66,95 @@ public class PlayerMovement2D5 : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (playerStats == null)
+            return;
+
+        // Acompañar la plataforma antes de comprobar el suelo.
+        if (currentPlatform != null && !jumpActive)
+        {
+            Vector3 platformDelta =
+                currentPlatform.position -
+                previousPlatformPosition;
+
+            rb.position += platformDelta;
+
+            previousPlatformPosition =
+                currentPlatform.position;
+        }
+
         CheckGround();
 
         if (isGrounded)
-            coyoteCounter = coyoteTime;
+            coyoteCounter = playerStats.coyoteTime;
         else
             coyoteCounter -= Time.fixedDeltaTime;
 
-        // Acompañar el desplazamiento de la plataforma.
-        Vector3 platformVelocity = Vector3.zero;
-
-        if (isGrounded && currentPlatform != null)
-        {
-            Vector3 displacement =
-                currentPlatform.position - previousPlatformPosition;
-
-            platformVelocity =
-                displacement / Time.fixedDeltaTime;
-
-            previousPlatformPosition = currentPlatform.position;
-        }
-
         Vector3 velocity = rb.linearVelocity;
-        velocity.x = horizontalInput * moveSpeed + platformVelocity.x;
 
-        // Acompañar tambien plataformas verticales.
-        if (isGrounded && currentPlatform != null)
-            velocity.y = platformVelocity.y;
+        // Movimiento horizontal del jugador.
+        velocity.x = horizontalInput * playerStats.moveSpeed;
+
+        // Evitar rebotes al bajar con una plataforma.
+        if (isGrounded &&
+            currentPlatform != null &&
+            !jumpActive &&
+            velocity.y < 0f)
+        {
+            velocity.y = 0f;
+        }
 
         rb.linearVelocity = velocity;
 
-        // Salto con Coyote Time y Jump Buffer.
-        if (jumpBufferCounter > 0f && coyoteCounter > 0f)
+        // Salto.
+        if (jumpBufferCounter > 0f &&
+            coyoteCounter > 0f)
         {
             Vector3 jumpVelocity = rb.linearVelocity;
             jumpVelocity.y = 0f;
             rb.linearVelocity = jumpVelocity;
 
             rb.AddForce(
-                Vector3.up * jumpForce,
+                Vector3.up * playerStats.jumpForce,
                 ForceMode.Impulse
             );
 
-            jumpStarted = true;
+            jumpActive = true;
+            jumpCutApplied = false;
+
             jumpBufferCounter = 0f;
             coyoteCounter = 0f;
 
             currentPlatform = null;
         }
 
-        // Reducir el salto al soltar espacio.
-        if (jumpCutRequested)
+        // Salto variable.
+        if (jumpActive &&
+            !jumpHeld &&
+            !jumpCutApplied &&
+            rb.linearVelocity.y > 0f)
         {
-            if (jumpStarted && rb.linearVelocity.y > 0f)
-            {
-                Vector3 cutVelocity = rb.linearVelocity;
-                cutVelocity.y *= jumpCutMultiplier;
-                rb.linearVelocity = cutVelocity;
-            }
+            Vector3 cutVelocity = rb.linearVelocity;
 
-            jumpCutRequested = false;
+            cutVelocity.y *= playerStats.jumpCutMultiplier;
+
+            rb.linearVelocity = cutVelocity;
+
+            jumpCutApplied = true;
         }
 
-        if (isGrounded && jumpBufferCounter <= 0f)
-            jumpStarted = false;
+        // Detectar aterrizaje.
+        if (jumpActive &&
+            isGrounded &&
+            rb.linearVelocity.y <= 0f &&
+            coyoteCounter > 0f)
+        {
+            jumpActive = false;
+        }
     }
 
     private void CheckGround()
     {
         Bounds bounds = capsule.bounds;
-
         Vector3 origin = bounds.center;
 
         float radius = capsule.radius *
@@ -155,7 +164,9 @@ public class PlayerMovement2D5 : MonoBehaviour
             ) * 0.9f;
 
         float distance =
-            bounds.extents.y - radius + groundCheckDistance;
+            bounds.extents.y -
+            radius +
+            groundCheckDistance;
 
         bool detected = Physics.SphereCast(
             origin,
@@ -175,15 +186,34 @@ public class PlayerMovement2D5 : MonoBehaviour
                 hit.collider.GetComponentInParent<MovingPlatform>();
 
             Transform detectedPlatform =
-                platform != null ? platform.transform : null;
+                platform != null
+                    ? platform.transform
+                    : null;
 
             if (currentPlatform != detectedPlatform)
             {
                 currentPlatform = detectedPlatform;
 
                 if (currentPlatform != null)
+                {
                     previousPlatformPosition =
                         currentPlatform.position;
+                }
+            }
+        }
+        else if (!jumpActive)
+        {
+            // Conservar la referencia durante una separacion breve.
+            // Esto ayuda con plataformas descendentes.
+            if (currentPlatform != null)
+            {
+                float separation = Mathf.Abs(
+                    rb.position.y -
+                    currentPlatform.position.y
+                );
+
+                if (separation > 3f)
+                    currentPlatform = null;
             }
         }
         else
