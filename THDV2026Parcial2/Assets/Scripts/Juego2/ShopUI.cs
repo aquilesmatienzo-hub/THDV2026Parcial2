@@ -6,7 +6,8 @@ using TMPro;
 public class ShopUI : MonoBehaviour
 {
     [SerializeField] private CardGameManager gameManager;
-    [SerializeField] private Transform productsContainer;
+    [SerializeField] private Transform cardsContainer;
+    [SerializeField] private Transform runesContainer;
     [SerializeField] private GameObject buttonPrefab;
     [SerializeField] private TMP_Text coinsText;
 
@@ -27,13 +28,17 @@ public class ShopUI : MonoBehaviour
     private void RefreshShop()
     {
         if (gameManager == null ||
-            productsContainer == null ||
+            cardsContainer == null ||
+            runesContainer == null ||
             buttonPrefab == null)
             return;
 
         coinsText.text = "Monedas: " + gameManager.Coins;
 
-        foreach (Transform child in productsContainer)
+        foreach (Transform child in cardsContainer)
+            Destroy(child.gameObject);
+
+        foreach (Transform child in runesContainer)
             Destroy(child.gameObject);
 
         foreach (CardDataSO card in gameManager.AvailableCards)
@@ -41,7 +46,7 @@ public class ShopUI : MonoBehaviour
             if (card == null)
                 continue;
 
-            GameObject item = Instantiate(buttonPrefab, productsContainer);
+            GameObject item = Instantiate(buttonPrefab, cardsContainer);
             Button button = item.GetComponent<Button>();
             TMP_Text label = item.GetComponentInChildren<TMP_Text>();
 
@@ -59,7 +64,7 @@ public class ShopUI : MonoBehaviour
             if (rune == null)
                 continue;
 
-            GameObject item = Instantiate(buttonPrefab, productsContainer);
+            GameObject item = Instantiate(buttonPrefab, runesContainer);
             Button button = item.GetComponent<Button>();
             TMP_Text label = item.GetComponentInChildren<TMP_Text>();
 
